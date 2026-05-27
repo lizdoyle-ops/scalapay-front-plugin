@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #F8F9FA;
+  color: #1A1A2E;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Thin scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #b0b0b0; }
+
+/* Skeleton pulse */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.skeleton-pulse {
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+/* Date input styling */
+input[type="date"] {
+  font-family: inherit;
+  font-size: 13px;
+  color: #1A1A2E;
+  border: 1px solid #E0E0E0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: white;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+input[type="date"]:focus {
+  border-color: #00B2A9;
+  box-shadow: 0 0 0 2px rgba(0,178,169,0.15);
+}
+
+select {
+  font-family: inherit;
+  font-size: 13px;
+  color: #1A1A2E;
+  border: 1px solid #E0E0E0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: white;
+  width: 100%;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%231A1A2E' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+select:focus {
+  border-color: #00B2A9;
+  box-shadow: 0 0 0 2px rgba(0,178,169,0.15);
+}
+
+input[type="text"] {
+  font-family: inherit;
+  font-size: 13px;
+  color: #1A1A2E;
+  border: 1px solid #E0E0E0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: white;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+input[type="text"]:focus {
+  border-color: #00B2A9;
+  box-shadow: 0 0 0 2px rgba(0,178,169,0.15);
+}
