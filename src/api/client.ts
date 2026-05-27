@@ -1,4 +1,5 @@
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? ''
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '')
+  ?? 'https://scalapay-front-plugin.vercel.app/api'
 
 export class ApiError extends Error {
   constructor(
@@ -11,9 +12,6 @@ export class ApiError extends Error {
 }
 
 export async function apiClient<T>(path: string, options?: RequestInit): Promise<T> {
-  if (!BASE_URL) {
-    throw new ApiError(0, 'VITE_API_BASE_URL is not configured')
-  }
 
   const url = `${BASE_URL}${path}`
 
