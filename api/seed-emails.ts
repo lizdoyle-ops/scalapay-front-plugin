@@ -114,7 +114,7 @@ export default async function handler(req: any, res: any) {
     importMsg(INBOX_STANDARD, {
       sender:      { handle: 'leyton@finalproduction.club', name: 'Leyton Graves' },
       to:          ['workable@cloudcontentconsulting.com'],
-      subject:     generated.leyton.subject,
+      subject:     `${generated.leyton.subject} [#${n}]`,
       body:        generated.leyton.body,
       body_format: 'html',
       external_id: `leyton-chargeback-${n}`,
@@ -126,7 +126,7 @@ export default async function handler(req: any, res: any) {
     importMsg(INBOX_STANDARD, {
       sender:      { handle: 'sarah@zestymedia.club', name: 'Sarah Murphy' },
       to:          ['workable@cloudcontentconsulting.com'],
-      subject:     generated.sarah.subject,
+      subject:     `${generated.sarah.subject} [#${n}]`,
       body:        generated.sarah.body,
       body_format: 'html',
       external_id: `sarah-bug-${n}`,
@@ -138,7 +138,7 @@ export default async function handler(req: any, res: any) {
     importMsg(INBOX_STANDARD, {
       sender:      { handle: 'elias@auditlawyer.club', name: 'Elias Holly' },
       to:          ['workable@cloudcontentconsulting.com'],
-      subject:     generated.elias.subject,
+      subject:     `${generated.elias.subject} [#${n}]`,
       body:        generated.elias.body,
       body_format: 'html',
       external_id: `elias-account-${n}`,
@@ -150,7 +150,7 @@ export default async function handler(req: any, res: any) {
     importMsg(INBOX_PEC, {
       sender:      { handle: 'mancini.associati@pec.avvocati.it', name: 'Studio Legale Mancini & Associati – PEC' },
       to:          ['pec@testforfront.com'],
-      subject:     generated.pec.subject,
+      subject:     `${generated.pec.subject} [#${n}]`,
       body:        generated.pec.body,
       body_format: 'html',
       external_id: `pec-rinegoziazione-${n}`,
