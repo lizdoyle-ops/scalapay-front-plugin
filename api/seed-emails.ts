@@ -138,7 +138,7 @@ export default async function handler(req: any, res: any) {
 
     // ── 4. PEC — Italian certified email (payment rescheduling) ──────────────
     [INBOX_PEC, {
-      sender: { handle: 'pec@testforfront.com', name: 'Studio Legale Mancini & Associati – PEC' },
+      sender: { handle: 'mancini.associati@pec.avvocati.it', name: 'Studio Legale Mancini & Associati – PEC' },
       to: ['pec@testforfront.com'],
       subject: `[PEC] Richiesta formale rinegoziazione piano di pagamento – Rif. SP-2024-991203-${n}`,
       body: `
