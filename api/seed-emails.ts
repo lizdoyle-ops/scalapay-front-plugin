@@ -102,9 +102,15 @@ export default async function handler(req: any, res: any) {
   const ts = nowTs()
 
   // One Claude call, then 4 Front imports in parallel
-  const generated = await generateAllEmails(n)
+  let generated: Awaited<ReturnType<typeof generateAllEmails>>
+  try {
+    generated = await generateAllEmails(n)
+  } catch (e: any) {
+    return res.status(500).json({ error: 'Claude generation failed', detail: e.message })
+  }
 
-  await Promise.all([
+  try {
+    await Promise.all([
     importMsg(INBOX_STANDARD, {
       sender:      { handle: 'leyton@finalproduction.club', name: 'Leyton Graves' },
       to:          ['workable@cloudcontentconsulting.com'],
@@ -154,6 +160,10 @@ export default async function handler(req: any, res: any) {
       metadata:    { is_inbound: true, is_archived: false, should_skip_rules: false },
     }),
   ])
+
+  } catch (e: any) {
+    return res.status(500).json({ error: 'Front import failed', detail: e.message })
+  }
 
   return res.status(200).json({ success: true, ref: n, sent: 4 })
 }
