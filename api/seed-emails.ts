@@ -1,10 +1,39 @@
-const FRONT_TOKEN = process.env.FRONT_API_TOKEN ?? ''
-const INBOX_STANDARD = 'inb_51g3x'  // Leyton, Sarah, Elias
-const INBOX_PEC      = 'inb_51gel'  // PEC
+const FRONT_TOKEN    = process.env.FRONT_API_TOKEN    ?? ''
+const ANTHROPIC_KEY  = process.env.ANTHROPIC_API_KEY  ?? ''
+const INBOX_STANDARD = 'inb_51g3x'   // Leyton, Sarah, Elias
+const INBOX_PEC      = 'inb_51gel'   // PEC
 
 const rand6 = () => Math.floor(Math.random() * 900000) + 100000
-const now   = () => Math.floor(Date.now() / 1000)
+const nowTs = () => Math.floor(Date.now() / 1000)
 
+type EmailContent = { subject: string; body: string }
+
+// ── Claude generation ─────────────────────────────────────────────────────────
+async function generateEmail(prompt: string): Promise<EmailContent> {
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-3-5-haiku-20241022',
+      max_tokens: 1024,
+      system: `You write realistic inbound customer support emails for Scalapay, an Italian BNPL company.
+Return ONLY a raw JSON object — no markdown, no code fences, no extra text — with exactly two fields:
+  "subject": plain text subject line
+  "body": HTML string using <p> tags`,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  })
+  if (!r.ok) throw new Error(`Anthropic ${r.status}: ${await r.text()}`)
+  const data: any = await r.json()
+  const raw = data.content[0].text.trim().replace(/^```json?\s*/,'').replace(/\s*```$/,'')
+  return JSON.parse(raw)
+}
+
+// ── Front import ──────────────────────────────────────────────────────────────
 async function importMsg(inboxId: string, payload: object) {
   const r = await fetch(`https://api2.frontapp.com/inboxes/${inboxId}/imported_messages`, {
     method: 'POST',
@@ -14,177 +43,113 @@ async function importMsg(inboxId: string, payload: object) {
     },
     body: JSON.stringify(payload),
   })
-  if (!r.ok) {
-    const text = await r.text()
-    throw new Error(`Front API ${r.status}: ${text}`)
-  }
+  if (!r.ok) throw new Error(`Front API ${r.status}: ${await r.text()}`)
   return r.json()
 }
 
+// ── Handler ───────────────────────────────────────────────────────────────────
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-
   if (req.method === 'OPTIONS') return res.status(204).end()
-  if (req.method !== 'POST') return res.status(405).end()
-  if (!FRONT_TOKEN) return res.status(500).json({ error: 'FRONT_API_TOKEN not configured in Vercel environment' })
+  if (req.method !== 'POST')   return res.status(405).end()
+  if (!FRONT_TOKEN)   return res.status(500).json({ error: 'FRONT_API_TOKEN not configured' })
+  if (!ANTHROPIC_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
 
-  const n = rand6()
-  const ts = now()
+  const n  = rand6()
+  const ts = nowTs()
+
+  // Generate all 4 emails in parallel via Claude
+  const [leyton, sarah, elias, pec] = await Promise.all([
+
+    generateEmail(`
+Category: Chargeback Claim — customer explicitly threatening or confirming they have opened a formal chargeback through their bank.
+Language: European Portuguese (PT-PT).
+Sender: Leyton Graves <leyton@finalproduction.club>
+Fixed details to include: order SP-2024-884321, merchant Zara, €89.70, refund requested 12 May 2026.
+Vary freely: subject line, tone (frustrated/formal/angry), specific bank or card provider named,
+exact chargeback timeline stated, emotional framing, any extra context invented.
+Never change: sender name, email, order ID, merchant, amount, language.`),
+
+    generateEmail(`
+Category: Bug — merchant reporting a technical failure, webhook or API integration problem.
+Language: English.
+Sender: Sarah Murphy <sarah@zestymedia.club>, Technology Lead, Zesty Media Ltd.
+Fixed details to include: webhook failure since 25 May 2026, open ticket TECH-1823, last error 422 Unprocessable Entity on 27 May 08:14, account manager Sophie Morel.
+Vary freely: subject line, specific business impact described, additional technical symptoms mentioned,
+tone (professional/escalating/urgent), any extra error examples invented.
+Never change: sender name, company, email, ticket ID, error code, account manager name.`),
+
+    generateEmail(`
+Category: Account Issues — customer reporting their account is suspended, locked or flagged in error.
+Language: Italian (IT).
+Sender: Elias Holly <elias@auditlawyer.club>
+Fixed details to include: account suspended 18 maggio 2026 for "attività sospetta", ~31 orders ~€4.870 lifetime, upcoming payment €99.75 for order SP-2024-602341 (Apple) due 1 June 2026.
+Vary freely: subject line, tone (polite/frustrated/formal/outraged), specific arguments made,
+type of identity verification offered, consequences highlighted.
+Never change: sender name, email, suspension date, order IDs, amounts, language.`),
+
+    generateEmail(`
+Category: PEC email (Posta Elettronica Certificata) + Payment reschedule Request — formal Italian certified legal communication requesting postponement of a payment installment.
+Language: Italian legal/formal.
+Sender: Studio Legale Mancini & Associati <mancini.associati@pec.avvocati.it>
+Client represented: Sig. Marco Vitali, C.F. VTLMRC88P10H501F, codice cliente SCL-IT-00291847.
+Fixed details: order SP-2024-991203, €720.00 total, 4 rate da €180.00, third installment due 01/06/2026.
+Must include: PEC legal references (D.Lgs. 82/2005), request proroga of 30–90 days, warning against negative credit reporting, 10-day response deadline, PEC footer disclaimer.
+Vary freely: exact legal articles cited beyond the above, duration of proroga, additional clauses,
+lawyer first name (keep Mancini), specific phrasing of the formal request.
+Never change: client name/CF, order ID, amounts, firm email, PEC format structure, language.`),
+  ])
 
   const emails: Array<[string, object]> = [
-
-    // ── 1. Leyton Graves — Reembolso / chargeback (Portuguese) ──────────────
     [INBOX_STANDARD, {
-      sender: { handle: 'leyton@finalproduction.club', name: 'Leyton Graves' },
-      to: ['workable@cloudcontentconsulting.com'],
-      subject: `Reembolso pendente – pedido SP-2024-884321 – aviso de chargeback [#${n}]`,
-      body: `
-        <p>Olá, Suporte Scalapay,</p>
-        <p>Escrevo para acompanhar o meu pedido de reembolso referente ao pedido
-        <strong>SP-2024-884321</strong> (Zara, <strong>€89,70</strong>),
-        submetido a <strong>12 de maio de 2026</strong>.</p>
-        <p>Já passaram mais de duas semanas sem qualquer atualização da vossa parte.
-        A Zara confirmou que a devolução foi aceite no sistema deles e consta como
-        concluída.</p>
-        <p>Fico a informar que, caso não receba confirmação do reembolso nos próximos
-        <strong>5 dias úteis</strong>, serei obrigado a abrir uma disputa formal de
-        <em>chargeback</em> junto do meu banco. Preferia resolver este assunto
-        diretamente com a Scalapay.</p>
-        <table style="border-collapse:collapse;font-size:13px;margin:12px 0">
-          <tr><td style="padding:3px 12px 3px 0;color:#666">Referência do pedido</td><td><strong>SP-2024-884321</strong></td></tr>
-          <tr><td style="padding:3px 12px 3px 0;color:#666">Comerciante</td><td>Zara</td></tr>
-          <tr><td style="padding:3px 12px 3px 0;color:#666">Valor</td><td>€89,70</td></tr>
-          <tr><td style="padding:3px 12px 3px 0;color:#666">Pedido de reembolso</td><td>12 de maio de 2026</td></tr>
-        </table>
-        <p>Agradeço confirmação de receção e indicação de prazo de resolução.</p>
-        <p>Com os melhores cumprimentos,<br><strong>Leyton Graves</strong><br>leyton@finalproduction.club</p>
-      `.trim(),
+      sender:      { handle: 'leyton@finalproduction.club', name: 'Leyton Graves' },
+      to:          ['workable@cloudcontentconsulting.com'],
+      subject:     leyton.subject,
+      body:        leyton.body,
       body_format: 'html',
-      external_id: `leyton-refund-${n}`,
-      thread_ref: `leyton-thread-${n}`,
-      created_at: ts,
-      type: 'email',
-      metadata: { is_inbound: true, is_archived: false, should_skip_rules: false },
+      external_id: `leyton-chargeback-${n}`,
+      thread_ref:  `leyton-thread-${n}`,
+      created_at:  ts,
+      type:        'email',
+      metadata:    { is_inbound: true, is_archived: false, should_skip_rules: false },
     }],
-
-    // ── 2. Sarah Murphy — Merchant webhook / API failure ─────────────────────
     [INBOX_STANDARD, {
-      sender: { handle: 'sarah@zestymedia.club', name: 'Sarah Murphy' },
-      to: ['workable@cloudcontentconsulting.com'],
-      subject: `URGENT: Scalapay webhook failure – Zesty Media Ltd. [#${n}]`,
-      body: `
-        <p>Dear Scalapay Partner Support,</p>
-        <p>I am writing on behalf of <strong>Zesty Media Ltd.</strong> regarding a critical
-        webhook failure affecting our Scalapay integration.</p>
-        <p>Since <strong>25 May 2026</strong>, our endpoint is no longer receiving
-        <code>order.completed</code> events from Scalapay. Our fulfilment platform
-        has no visibility of completed payments and orders must be reconciled manually —
-        an unsustainable situation at our current transaction volume.</p>
-        <p>We raised ticket <strong>TECH-1823</strong> three days ago and have received
-        no substantive update. Each day without resolution is costing us in delayed
-        shipments and customer escalations.</p>
-        <ul style="font-size:13px;line-height:1.7">
-          <li>Webhook URL: <code>https://api.zestymedia.club/webhooks/scalapay</code></li>
-          <li>Last successful event received: 24 May 2026, 22:41</li>
-          <li>Last error in our logs: <strong>422 Unprocessable Entity</strong>, 27 May 08:14</li>
-        </ul>
-        <p>Please escalate to engineering and provide an ETA.</p>
-        <p>Kind regards,<br><strong>Sarah Murphy</strong><br>Technology Lead, Zesty Media Ltd.<br>
-        Account Manager: Sophie Morel</p>
-      `.trim(),
+      sender:      { handle: 'sarah@zestymedia.club', name: 'Sarah Murphy' },
+      to:          ['workable@cloudcontentconsulting.com'],
+      subject:     sarah.subject,
+      body:        sarah.body,
       body_format: 'html',
-      external_id: `sarah-webhook-${n}`,
-      thread_ref: `sarah-thread-${n}`,
-      created_at: ts,
-      type: 'email',
-      metadata: { is_inbound: true, is_archived: false, should_skip_rules: false },
+      external_id: `sarah-bug-${n}`,
+      thread_ref:  `sarah-thread-${n}`,
+      created_at:  ts,
+      type:        'email',
+      metadata:    { is_inbound: true, is_archived: false, should_skip_rules: false },
     }],
-
-    // ── 3. Elias Holly — Account suspension dispute ───────────────────────────
     [INBOX_STANDARD, {
-      sender: { handle: 'elias@auditlawyer.club', name: 'Elias Holly' },
-      to: ['workable@cloudcontentconsulting.com'],
-      subject: `Contestazione sospensione account – elias@auditlawyer.club [#${n}]`,
-      body: `
-        <p>Gentile Team di Supporto Scalapay,</p>
-        <p>Vi scrivo per contestare formalmente la sospensione del mio account Scalapay,
-        avvenuta il <strong>18 maggio 2026</strong> con la motivazione di
-        "attività sospetta".</p>
-        <p>Sono cliente Scalapay da oltre due anni, con
-        <strong>31 ordini completati per un totale di circa €4.870</strong>.
-        Tutta l'attività sull'account è stata effettuata personalmente da me.
-        Ritengo che questa sospensione sia avvenuta per errore.</p>
-        <p>La sospensione mi sta causando gravi disagi: ho una rata in scadenza il
-        <strong>1° giugno 2026</strong> di <strong>€99,75</strong> relativa all'ordine
-        SP-2024-602341 (Apple). L'impossibilità di effettuare il pagamento —
-        per cause a me non imputabili — potrebbe influire negativamente
-        sulla mia posizione creditizia.</p>
-        <p>Chiedo formalmente:</p>
-        <ol style="font-size:13px;line-height:1.8">
-          <li>Una spiegazione scritta dell'attività ritenuta sospetta</li>
-          <li>Il ripristino immediato del mio account, oppure</li>
-          <li>Una verifica urgente con la possibilità di fornire un documento d'identità</li>
-        </ol>
-        <p>Vi chiedo di trattare questa richiesta con la massima urgenza.</p>
-        <p>Cordiali saluti,<br><strong>Elias Holly</strong><br>elias@auditlawyer.club</p>
-      `.trim(),
+      sender:      { handle: 'elias@auditlawyer.club', name: 'Elias Holly' },
+      to:          ['workable@cloudcontentconsulting.com'],
+      subject:     elias.subject,
+      body:        elias.body,
       body_format: 'html',
-      external_id: `elias-suspension-${n}`,
-      thread_ref: `elias-thread-${n}`,
-      created_at: ts,
-      type: 'email',
-      metadata: { is_inbound: true, is_archived: false, should_skip_rules: false },
+      external_id: `elias-account-${n}`,
+      thread_ref:  `elias-thread-${n}`,
+      created_at:  ts,
+      type:        'email',
+      metadata:    { is_inbound: true, is_archived: false, should_skip_rules: false },
     }],
-
-    // ── 4. PEC — Italian certified email (payment rescheduling) ──────────────
     [INBOX_PEC, {
-      sender: { handle: 'mancini.associati@pec.avvocati.it', name: 'Studio Legale Mancini & Associati – PEC' },
-      to: ['pec@testforfront.com'],
-      subject: `[PEC] Richiesta formale rinegoziazione piano di pagamento – Rif. SP-2024-991203-${n}`,
-      body: `
-        <p>Spettabile <strong>Scalapay S.r.l.</strong>,</p>
-        <p>con la presente comunicazione, trasmessa a mezzo
-        <strong>Posta Elettronica Certificata (PEC)</strong> ai sensi del D.Lgs. 82/2005
-        e del Codice del Consumo, lo Studio Legale Mancini &amp; Associati, in rappresentanza
-        del proprio assistito <strong>Sig. Marco Vitali</strong>
-        (C.F. VTLMRC88P10H501F, codice cliente Scalapay SCL-IT-00291847), comunica quanto segue.</p>
-        <p>Il Sig. Vitali è titolare di un piano di pagamento Scalapay relativo all'ordine
-        <strong>SP-2024-991203</strong> (importo totale: <strong>€ 720,00</strong> in 4 rate
-        mensili da € 180,00 ciascuna). La terza rata risulta in scadenza il
-        <strong>01/06/2026</strong>.</p>
-        <p>A causa di una documentata temporanea difficoltà economica — attestata dalla
-        documentazione allegata alla presente — il nostro assistito non è in grado di onorare
-        la rata alle condizioni originarie. <strong>Ai sensi dell'art. 1467 c.c. e dell'art. 33
-        del Codice del Consumo</strong>, si richiede formalmente una proroga di
-        <strong>60 (sessanta) giorni</strong> sulla rata in scadenza, senza applicazione di
-        interessi di mora nel periodo di proroga e con conseguente slittamento delle rate
-        successive.</p>
-        <p>Si diffida altresì dall'applicare qualsiasi segnalazione negativa agli organi di
-        informazione creditizia (CRIF, Experian, CTC) prima dell'esito della presente
-        richiesta formale.</p>
-        <p>Si richiede un riscontro scritto entro e non oltre
-        <strong>10 (dieci) giorni lavorativi</strong> dalla data di ricezione della presente.</p>
-        <p>Con osservanza,</p>
-        <p><strong>Avv. Giulia Mancini</strong><br>
-        Mancini &amp; Associati Studio Legale<br>
-        Via del Corso 144, 00186 Roma (RM)<br>
-        Tel: +39 06 678 1234<br>
-        PEC: mancini.associati@pec.avvocati.it</p>
-        <hr style="margin:20px 0;border:none;border-top:1px solid #ddd">
-        <p style="font-size:11px;color:#888;font-style:italic">
-          Questa comunicazione è stata trasmessa tramite Posta Elettronica Certificata (PEC).
-          Il presente messaggio ha valore legale equiparabile alla raccomandata con avviso di
-          ricevimento ai sensi del D.P.R. 68/2005 e del D.Lgs. 82/2005.
-        </p>
-      `.trim(),
+      sender:      { handle: 'mancini.associati@pec.avvocati.it', name: 'Studio Legale Mancini & Associati – PEC' },
+      to:          ['pec@testforfront.com'],
+      subject:     pec.subject,
+      body:        pec.body,
       body_format: 'html',
       external_id: `pec-rinegoziazione-${n}`,
-      thread_ref: `pec-thread-${n}`,
-      created_at: ts,
-      type: 'email',
-      metadata: { is_inbound: true, is_archived: false, should_skip_rules: false },
+      thread_ref:  `pec-thread-${n}`,
+      created_at:  ts,
+      type:        'email',
+      metadata:    { is_inbound: true, is_archived: false, should_skip_rules: false },
     }],
   ]
 
