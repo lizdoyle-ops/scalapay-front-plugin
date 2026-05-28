@@ -1,11 +1,12 @@
 const FRONT_TOKEN = process.env.FRONT_API_TOKEN ?? ''
-const INBOX_ID = 'inb_51gel'
+const INBOX_STANDARD = 'inb_51g3x'  // Leyton, Sarah, Elias
+const INBOX_PEC      = 'inb_51gel'  // PEC
 
 const rand6 = () => Math.floor(Math.random() * 900000) + 100000
-const tsAgo = (mins: number) => Math.floor(Date.now() / 1000) - mins * 60
+const now   = () => Math.floor(Date.now() / 1000)
 
-async function importMsg(payload: object) {
-  const r = await fetch(`https://api2.frontapp.com/inboxes/${INBOX_ID}/imported_messages`, {
+async function importMsg(inboxId: string, payload: object) {
+  const r = await fetch(`https://api2.frontapp.com/inboxes/${inboxId}/imported_messages`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${FRONT_TOKEN}`,
@@ -30,40 +31,46 @@ export default async function handler(req: any, res: any) {
   if (!FRONT_TOKEN) return res.status(500).json({ error: 'FRONT_API_TOKEN not configured in Vercel environment' })
 
   const n = rand6()
+  const ts = now()
 
-  const emails = [
-    // ── 1. Leyton Graves — Refund / chargeback ─────────────────────────────
-    {
+  const emails: Array<[string, object]> = [
+
+    // ── 1. Leyton Graves — Reembolso / chargeback (Portuguese) ──────────────
+    [INBOX_STANDARD, {
       sender: { handle: 'leyton@finalproduction.club', name: 'Leyton Graves' },
       to: ['workable@cloudcontentconsulting.com'],
-      subject: `Refund still pending – order SP-2024-884321 – chargeback notice [#${n}]`,
+      subject: `Reembolso pendente – pedido SP-2024-884321 – aviso de chargeback [#${n}]`,
       body: `
-        <p>Hello Scalapay Support,</p>
-        <p>I am following up on my refund request for order <strong>SP-2024-884321</strong>
-        (Zara, <strong>€89.70</strong>), which I submitted on <strong>12 May 2026</strong>.</p>
-        <p>It has now been over two weeks with no resolution. Zara has confirmed the
-        return was accepted on their side and shows as complete in their system.</p>
-        <p>Please be advised: if I do not receive a confirmed refund within
-        <strong>5 business days</strong> I will initiate a formal chargeback dispute
-        through my bank. I would strongly prefer to resolve this directly with Scalapay.</p>
+        <p>Olá, Suporte Scalapay,</p>
+        <p>Escrevo para acompanhar o meu pedido de reembolso referente ao pedido
+        <strong>SP-2024-884321</strong> (Zara, <strong>€89,70</strong>),
+        submetido a <strong>12 de maio de 2026</strong>.</p>
+        <p>Já passaram mais de duas semanas sem qualquer atualização da vossa parte.
+        A Zara confirmou que a devolução foi aceite no sistema deles e consta como
+        concluída.</p>
+        <p>Fico a informar que, caso não receba confirmação do reembolso nos próximos
+        <strong>5 dias úteis</strong>, serei obrigado a abrir uma disputa formal de
+        <em>chargeback</em> junto do meu banco. Preferia resolver este assunto
+        diretamente com a Scalapay.</p>
         <table style="border-collapse:collapse;font-size:13px;margin:12px 0">
-          <tr><td style="padding:3px 12px 3px 0;color:#666">Order ref</td><td><strong>SP-2024-884321</strong></td></tr>
-          <tr><td style="padding:3px 12px 3px 0;color:#666">Merchant</td><td>Zara</td></tr>
-          <tr><td style="padding:3px 12px 3px 0;color:#666">Amount</td><td>€89.70</td></tr>
-          <tr><td style="padding:3px 12px 3px 0;color:#666">Refund requested</td><td>12 May 2026</td></tr>
+          <tr><td style="padding:3px 12px 3px 0;color:#666">Referência do pedido</td><td><strong>SP-2024-884321</strong></td></tr>
+          <tr><td style="padding:3px 12px 3px 0;color:#666">Comerciante</td><td>Zara</td></tr>
+          <tr><td style="padding:3px 12px 3px 0;color:#666">Valor</td><td>€89,70</td></tr>
+          <tr><td style="padding:3px 12px 3px 0;color:#666">Pedido de reembolso</td><td>12 de maio de 2026</td></tr>
         </table>
-        <p>Please confirm receipt and provide an ETA.</p>
-        <p>Best regards,<br><strong>Leyton Graves</strong><br>leyton@finalproduction.club</p>
+        <p>Agradeço confirmação de receção e indicação de prazo de resolução.</p>
+        <p>Com os melhores cumprimentos,<br><strong>Leyton Graves</strong><br>leyton@finalproduction.club</p>
       `.trim(),
       body_format: 'html',
       external_id: `leyton-refund-${n}`,
-      created_at: tsAgo(12 + Math.floor(Math.random() * 20)),
+      thread_ref: `leyton-thread-${n}`,
+      created_at: ts,
       type: 'email',
       metadata: { is_inbound: true, is_archived: false, should_skip_rules: false },
-    },
+    }],
 
-    // ── 2. Sarah Murphy — Merchant webhook / API failure ────────────────────
-    {
+    // ── 2. Sarah Murphy — Merchant webhook / API failure ─────────────────────
+    [INBOX_STANDARD, {
       sender: { handle: 'sarah@zestymedia.club', name: 'Sarah Murphy' },
       to: ['workable@cloudcontentconsulting.com'],
       subject: `URGENT: Scalapay webhook failure – Zesty Media Ltd. [#${n}]`,
@@ -73,7 +80,7 @@ export default async function handler(req: any, res: any) {
         webhook failure affecting our Scalapay integration.</p>
         <p>Since <strong>25 May 2026</strong>, our endpoint is no longer receiving
         <code>order.completed</code> events from Scalapay. Our fulfilment platform
-        has no visibility of completed payments; orders must be reconciled manually —
+        has no visibility of completed payments and orders must be reconciled manually —
         an unsustainable situation at our current transaction volume.</p>
         <p>We raised ticket <strong>TECH-1823</strong> three days ago and have received
         no substantive update. Each day without resolution is costing us in delayed
@@ -89,13 +96,14 @@ export default async function handler(req: any, res: any) {
       `.trim(),
       body_format: 'html',
       external_id: `sarah-webhook-${n}`,
-      created_at: tsAgo(35 + Math.floor(Math.random() * 25)),
+      thread_ref: `sarah-thread-${n}`,
+      created_at: ts,
       type: 'email',
       metadata: { is_inbound: true, is_archived: false, should_skip_rules: false },
-    },
+    }],
 
-    // ── 3. Elias Holly — Account suspension dispute ─────────────────────────
-    {
+    // ── 3. Elias Holly — Account suspension dispute ───────────────────────────
+    [INBOX_STANDARD, {
       sender: { handle: 'elias@auditlawyer.club', name: 'Elias Holly' },
       to: ['workable@cloudcontentconsulting.com'],
       subject: `Account suspension dispute – elias@auditlawyer.club [#${n}]`,
@@ -122,13 +130,14 @@ export default async function handler(req: any, res: any) {
       `.trim(),
       body_format: 'html',
       external_id: `elias-suspension-${n}`,
-      created_at: tsAgo(60 + Math.floor(Math.random() * 30)),
+      thread_ref: `elias-thread-${n}`,
+      created_at: ts,
       type: 'email',
       metadata: { is_inbound: true, is_archived: false, should_skip_rules: false },
-    },
+    }],
 
-    // ── 4. PEC — Italian certified email (payment rescheduling) ────────────
-    {
+    // ── 4. PEC — Italian certified email (payment rescheduling) ──────────────
+    [INBOX_PEC, {
       sender: { handle: 'pec@testforfront.com', name: 'Studio Legale Mancini & Associati – PEC' },
       to: ['pec@testforfront.com'],
       subject: `[PEC] Richiesta formale rinegoziazione piano di pagamento – Rif. SP-2024-991203-${n}`,
@@ -170,14 +179,15 @@ export default async function handler(req: any, res: any) {
       `.trim(),
       body_format: 'html',
       external_id: `pec-rinegoziazione-${n}`,
-      created_at: tsAgo(90 + Math.floor(Math.random() * 40)),
+      thread_ref: `pec-thread-${n}`,
+      created_at: ts,
       type: 'email',
       metadata: { is_inbound: true, is_archived: false, should_skip_rules: false },
-    },
+    }],
   ]
 
   try {
-    await Promise.all(emails.map(importMsg))
+    await Promise.all(emails.map(([inboxId, payload]) => importMsg(inboxId, payload)))
     return res.status(200).json({ success: true, ref: n, sent: emails.length })
   } catch (e: any) {
     return res.status(500).json({ error: e.message })
