@@ -74,6 +74,47 @@ Vary freely: exact legal articles beyond above, proroga duration, lawyer first n
   return JSON.parse(raw)
 }
 
+// ── Archive existing open conversations for a sender (best-effort) ───────────
+async function archiveOpenConversations(handle: string) {
+  try {
+    // 1. Find the contact by email handle
+    const cr = await fetch(
+      `https://api2.frontapp.com/contacts?q=${encodeURIComponent(handle)}&limit=10`,
+      { headers: { Authorization: `Bearer ${FRONT_TOKEN}` } }
+    )
+    if (!cr.ok) return
+    const cd: any = await cr.json()
+    const contact = (cd._results ?? []).find((c: any) =>
+      (c.handles ?? []).some((h: any) => h.handle === handle)
+    )
+    if (!contact) return
+
+    // 2. Get open conversations for this contact
+    const vr = await fetch(
+      `https://api2.frontapp.com/contacts/${contact.id}/conversations?q[statuses][]=open&limit=50`,
+      { headers: { Authorization: `Bearer ${FRONT_TOKEN}` } }
+    )
+    if (!vr.ok) return
+    const vd: any = await vr.json()
+
+    // 3. Archive each one
+    await Promise.all(
+      (vd._results ?? []).map((conv: any) =>
+        fetch(`https://api2.frontapp.com/conversations/${conv.id}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${FRONT_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ status: 'archived' }),
+        })
+      )
+    )
+  } catch {
+    // Best-effort cleanup — never block the import
+  }
+}
+
 // ── Front import ──────────────────────────────────────────────────────────────
 async function importMsg(inboxId: string, payload: object) {
   const r = await fetch(`https://api2.frontapp.com/inboxes/${inboxId}/imported_messages`, {
@@ -101,10 +142,18 @@ export default async function handler(req: any, res: any) {
   const n  = rand6()
   const ts = nowTs()
 
-  // One Claude call, then 4 Front imports in parallel
+  // Archive old conversations + generate new content in parallel
   let generated: Awaited<ReturnType<typeof generateAllEmails>>
   try {
-    generated = await generateAllEmails(n)
+    const [emails] = await Promise.all([
+      generateAllEmails(n),
+      // Best-effort: archive any open conversations so new imports don't thread into them
+      archiveOpenConversations('leyton@finalproduction.club'),
+      archiveOpenConversations('sarah@zestymedia.club'),
+      archiveOpenConversations('elias@auditlawyer.club'),
+      archiveOpenConversations('mancini.associati@pec.avvocati.it'),
+    ])
+    generated = emails
   } catch (e: any) {
     return res.status(500).json({ error: 'Claude generation failed', detail: e.message })
   }
