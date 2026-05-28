@@ -106,27 +106,29 @@ export default async function handler(req: any, res: any) {
     [INBOX_STANDARD, {
       sender: { handle: 'elias@auditlawyer.club', name: 'Elias Holly' },
       to: ['workable@cloudcontentconsulting.com'],
-      subject: `Account suspension dispute – elias@auditlawyer.club [#${n}]`,
+      subject: `Contestazione sospensione account – elias@auditlawyer.club [#${n}]`,
       body: `
-        <p>Dear Scalapay Support Team,</p>
-        <p>I am writing to formally dispute the suspension of my Scalapay account on
-        <strong>18 May 2026</strong>, citing "suspicious activity."</p>
-        <p>I have been a Scalapay customer for over two years with
-        <strong>31 completed orders totalling approximately €4,870</strong>. All account
-        activity has been conducted personally by me. I believe this suspension has been
-        triggered in error.</p>
-        <p>The suspension is causing significant inconvenience: I have an outstanding
-        payment of <strong>€99.75</strong> due on <strong>1 June 2026</strong> for order
-        SP-2024-602341 (Apple). Inability to make this payment — through no fault of my
-        own — may affect my credit standing.</p>
-        <p>I respectfully request:</p>
+        <p>Gentile Team di Supporto Scalapay,</p>
+        <p>Vi scrivo per contestare formalmente la sospensione del mio account Scalapay,
+        avvenuta il <strong>18 maggio 2026</strong> con la motivazione di
+        "attività sospetta".</p>
+        <p>Sono cliente Scalapay da oltre due anni, con
+        <strong>31 ordini completati per un totale di circa €4.870</strong>.
+        Tutta l'attività sull'account è stata effettuata personalmente da me.
+        Ritengo che questa sospensione sia avvenuta per errore.</p>
+        <p>La sospensione mi sta causando gravi disagi: ho una rata in scadenza il
+        <strong>1° giugno 2026</strong> di <strong>€99,75</strong> relativa all'ordine
+        SP-2024-602341 (Apple). L'impossibilità di effettuare il pagamento —
+        per cause a me non imputabili — potrebbe influire negativamente
+        sulla mia posizione creditizia.</p>
+        <p>Chiedo formalmente:</p>
         <ol style="font-size:13px;line-height:1.8">
-          <li>A written explanation of the specific activity deemed suspicious</li>
-          <li>Immediate reinstatement of my account, or</li>
-          <li>An expedited review with the opportunity to provide identity verification</li>
+          <li>Una spiegazione scritta dell'attività ritenuta sospetta</li>
+          <li>Il ripristino immediato del mio account, oppure</li>
+          <li>Una verifica urgente con la possibilità di fornire un documento d'identità</li>
         </ol>
-        <p>Please treat this as urgent.</p>
-        <p>Yours sincerely,<br><strong>Elias Holly</strong><br>elias@auditlawyer.club</p>
+        <p>Vi chiedo di trattare questa richiesta con la massima urgenza.</p>
+        <p>Cordiali saluti,<br><strong>Elias Holly</strong><br>elias@auditlawyer.club</p>
       `.trim(),
       body_format: 'html',
       external_id: `elias-suspension-${n}`,
